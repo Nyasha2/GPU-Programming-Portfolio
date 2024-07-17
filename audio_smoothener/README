@@ -1,0 +1,117 @@
+CS 179: GPU Computing
+Lab 1: Introduction to CUDA
+Name: Nyasha Makaya
+
+================================================================================
+Question 1: Common Errors (20 points)
+================================================================================
+
+--------------------------------------------------------------------------------
+1.1
+--------------------------------------------------------------------------------
+Issue: the line int *a = 3 creates a pointer to an integer, a, and assign the value of
+a to be 3, which is not a valid memory address
+
+Fix: this can be fixed by mallocing a memory address to a, then allocating 3 to that memory address:
+int *a = malloc(sizeof(int))
+*a = 3
+
+--------------------------------------------------------------------------------
+1.2
+--------------------------------------------------------------------------------
+Issue: The declaration int *a, b creates a pointer to an integer a, and an int variable b.
+Therefore, b is not a pointer, which means we cannot allocate memory to it, and we can not 
+use the * operator on it, so we get errors.
+
+Fix: We could fix this by replacing the line int *a, b with:
+int *a;
+int *b;
+
+--------------------------------------------------------------------------------
+1.3
+--------------------------------------------------------------------------------
+Issue: A total of 1000 bytes is being malloced to the pointer a. However, a single
+integer in C takes up about 4 bytes, which means that 1000 integers need 4000 bytes.
+Thus, the allocated memory is not enough to hold 1000 integers
+
+Fix: We can fix this by directly mallocing memory for 1000 integers:
+int i, *a = (int *)malloc(1000 * sizeof(int))
+
+--------------------------------------------------------------------------------
+1.4
+--------------------------------------------------------------------------------
+Issue: a points to an array of 3 pointers. For a 3 x 100 array, we need each of the three pointers
+to be pointing to an integer array of size 100, but this memory is not allocated. Therefore, trying to 
+assign a value to a[1][1] will result in a memory error since a[1] doesnt point to a valid memory address yet.
+
+Fix: For each of the three pointers in the array pointed to by a, we need to assign an array of 100 ints:
+void test4() {
+    int **a = (int **) malloc(3 * sizeof (int *));
+    for (int i = 0; i < 3; i++) {
+        a[i] = (int *) malloc(100 * sizeof(int));
+        if (!a[i]) {
+            printf("Out of memory\n");
+            exit(-1);
+        }
+    }
+    a[1][1] = 5;
+
+}
+
+--------------------------------------------------------------------------------
+1.5
+--------------------------------------------------------------------------------
+Issue: the scanf function may return an error if the assignment of a was not successful.
+Also, the if (!a) clause does not check if the value at a is 0, but rather, checks if a is a 
+valid pointer, thus this code only prints the message when a is not a valid pointer, instead of
+when the input value is 0
+
+Fix: check if the assignment of a was successful before calling scanf:
+if (!a) {
+    printf("Out of memory\n");
+    exit(-1);
+}
+
+Then, replace the code after scanf with:
+if (*a == 0){
+    printf("Value is 0\n");
+}
+
+================================================================================
+Question 2: Parallelization (30 points)
+================================================================================
+
+--------------------------------------------------------------------------------
+2.1 To compute y_1[n], we need to access the neighbouring elements of x[n], x[n - 1]
+and x[n - 2], which create a data dependency as the calculation of each element depends
+on the neighbouring elements of the input. Since the neighbouring elements need to be 
+accessed concurrently, this results in additional time and computational resources
+beign required to syncronize parallel threads/processes, i.e synchronization overhead.
+
+Also, accessing neighbouring elements of the input signal x[n] may resut in non-coalesced
+memory accesses and reduced memory throughput on the GPU: Neighboring elements of x[n]are 
+accessed by different threads, resulting in scattered memory transactions, thus non-coalesced
+memory access. This results in the GPU having to perform multiple smaller memory transactions
+instead of combining them into larger, more efficient operations.
+
+In contrary, y_2[n] does not have immediate dependencies: it depends on the values of 
+y_2[n - 1] and y_2[n - 2], which can be computed independently in parallel using threads,
+thus much easier parallelization on the GPU. Also, since y_2[n] depends on previous values 
+of itself, the computation can be efficiently pipelined and parallelized.
+
+Additionally, the computation of y_2[n] mainly involves accessing the elements
+of y_2[n] itself, which can be optimized for coalesced memory accesses and better memory 
+throughput on the GPU.
+
+Overall, the y_2[n] calculation has simpler data dependencies, a higher degree of parallelism
+and better optimizable memory access patterns, and thus is more likely to be easier and faster
+than the y_1[n] calculation.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+2.2
+--------------------------------------------------------------------------------
+
+================================================================================
+Question 3: Small-Kernel Convolution (50 points)
+================================================================================
